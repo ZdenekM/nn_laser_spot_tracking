@@ -63,7 +63,29 @@ These are settable online with a [ddynamic reconfigure](https://github.com/pal-r
 - Image dataset: [https://zenodo.org/records/10471811](https://zenodo.org/records/10471811)
 - Trained models: [https://zenodo.org/records/10471835](https://zenodo.org/records/10471835)
 
-## Paper
+## Troubleshoot
+If a too old version of `setuptools` is found on the system, Ultralytics Yolo will upgrade it. Recently, when upgrading to >71, this errors occurs:
+`AttributeError: module 'importlib_metadata' has no attribute 'EntryPoints'`
+You should solve downgrading a bit setuptools: `pip3 install setuptools==70.3.0`. See [here](https://github.com/pypa/setuptools/issues/4478)
+
+## Papers
+
+[https://www.sciencedirect.com/science/article/pii/S092188902500140X](https://www.sciencedirect.com/science/article/pii/S092188902500140X)
+@article{LaserJournal,
+  title = {An intuitive tele-collaboration interface exploring laser-based interaction and behavior trees},
+  author = {Torielli, Davide and Muratore, Luca and Tsagarakis, Nikos},
+  journal = {Robotics and Autonomous Systems},
+  volume = {193},
+  pages = {105054},
+  year = {2025},
+  issn = {0921-8890},
+  doi = {https://doi.org/10.1016/j.robot.2025.105054},
+  url = {https://www.sciencedirect.com/science/article/pii/S092188902500140X},
+  keywords = {Human-robot interface, Human-centered robotics, Visual servoing, Motion planning},
+  dimensions = {true},
+}
+
+
 [https://ieeexplore.ieee.org/document/10602529](https://ieeexplore.ieee.org/document/10602529)
 ```
 @ARTICLE{10602529,
