@@ -25,7 +25,7 @@ A TF will be broadcasted to the ROS tf tree from the point cloud reference to th
 - [Optional, but suggested] If Yolov5 is used, better to clone their [repo](https://github.com/ultralytics/yolov5/), and provide its path to the `yolo_path` argument. Otherwise, pytorch will download it every time (since the default is "ultralytics/yolov5"). If cloning, go in the folder and install the requirments: `pip install -r requirements.txt`.
 
 - Run the launch file: 
-  `roslaunch tpo_vision laser3DTracking.launch model_name:=<> camera:=<> point_cloud:=<>`
+  `roslaunch nn_laser_spot_tracking laser_tracking.launch model_name:=<> camera:=<> point_cloud:=<>`
 
 ### Launch File Arguments
 #### Required
@@ -57,11 +57,27 @@ These are settable online with a [ddynamic reconfigure](https://github.com/pal-r
 - **`rviz`** (default: false): Launch RViz visualization.
 
 ## Training new models
-- See https://github.com/ADVRHumanoids/nn_laser_spot_tracking/tree/master/training
+- See [hhcm_yolo_training](https://github.com/ADVRHumanoids/hhcm_yolo_training) repo
 
-## Data
-- Image dataset: [https://zenodo.org/records/10471811](https://zenodo.org/records/10471811)
-- Trained models: [https://zenodo.org/records/10471835](https://zenodo.org/records/10471835)
+## Testing/compaing models
+- See [benchmark](benchmark) folder
+
+## Image dataset: 
+Available at [https://zenodo.org/records/15230870](https://zenodo.org/records/15230870)
+Two formats are given:
+- COCO format (for non-yolo models) as:
+  - a folder containing images and annotation folders.    
+    - in images, all the images (not divided by train, val, test, this is done by the code)
+    - in annotations, an instances_default.json file 
+
+- YOLOv5 pytorch format for YOLOV5 model
+  - a folder containing data.yaml file which points to two folders in the same location:
+    - train
+    - valid
+    Both have images and labels folders
+
+## Trained models: 
+Available at [https://zenodo.org/records/10471835](https://zenodo.org/records/10471835)
 
 ## Troubleshoot
 If a too old version of `setuptools` is found on the system, Ultralytics Yolo will upgrade it. Recently, when upgrading to >71, this errors occurs:
@@ -84,7 +100,6 @@ You should solve downgrading a bit setuptools: `pip3 install setuptools==70.3.0`
   keywords = {Human-robot interface, Human-centered robotics, Visual servoing, Motion planning},
   dimensions = {true},
 }
-
 
 [https://ieeexplore.ieee.org/document/10602529](https://ieeexplore.ieee.org/document/10602529)
 ```

@@ -3,3 +3,7 @@
 *.kate-swp
 *.pt
 *.vscode
+training/runs
+*.egg-info
+benchmark/results/*
+!/benchmark/results/.gitkeep
