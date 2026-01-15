@@ -7,7 +7,7 @@ This file defines how agents should work in this repository.
 - No fallbacks or silent failures. Fail fast with clear, explicit error messages.
 - Prefer clean, direct solutions over workarounds.
 - Do not add compatibility checks for deprecated parameters unless explicitly requested.
-- Do not create commits or push. If asked for a commit message, use Conventional Commits.
+- Do not create commits or push. If asked for a commit message, use Conventional Commits; for fix commits, name the problem, not the solution.
 - ROS 1 is used.
 - Primary run path is Docker (docker compose).
 - Image transport is raw-only; compressed transport is intentionally not supported.

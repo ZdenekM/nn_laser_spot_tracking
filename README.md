@@ -109,8 +109,8 @@ Parameters (rosparams for `aruco_table_calibration`):
 - Prerequisites: Docker, docker compose, and an Azure Kinect device connected to the host.
 - Download the model `yolov5l6_e400_b8_tvt302010_laser_v4.pt` from [https://zenodo.org/records/10471835](https://zenodo.org/records/10471835) and place it in `models/` before building.
 - Run everything in Docker with: `docker compose up --build`
-- Toggle tracking with `TRACKING_ENABLE=true|false` (compose environment variable).
-- Set Kinect FPS with `K4A_FPS=5|15|30` (also used for `dl_rate`).
+- Toggle tracking by editing `TRACKING_ENABLE=true|false` in `docker-compose.yml` (compose environment variable).
+- Set Kinect FPS with `K4A_FPS=5|15|30` in `docker-compose.yml` (also used for `dl_rate`).
 - The full ROS stack runs inside the container; no host-side ROS installation is required.
 - The container runs privileged with host networking for USB access to the Kinect and publishes UDP port 5005/udp to the host.
 - The docker stack launches the Azure Kinect driver, `tracking_2D`, and `laser_udp_bridge`.

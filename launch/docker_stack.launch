@@ -19,6 +19,7 @@
       <arg name="rgb_point_cloud" value="false" />
       <arg name="color_resolution" value="720P" />
       <arg name="fps" value="$(arg k4a_fps)" />
+      <arg name="overwrite_robot_description" value="false"/>
     </include>
   </group>
 
