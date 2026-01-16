@@ -21,8 +21,9 @@
   <arg name="projector_calibration_path" default="/data/projector_calibration.json" />
   <arg name="projector_calibration_plane_rms_tolerance_m" default="0.01" />
   <arg name="projector_calibration_full3d_min_depth_m" default="0.01" />
+  <arg name="required" default="true" />
 
-  <node pkg="laser_udp_bridge" type="laser_udp_bridge_node.py" name="laser_udp_bridge" output="screen">
+  <node pkg="laser_udp_bridge" type="laser_udp_bridge_node.py" name="laser_udp_bridge" output="screen" required="$(arg required)">
     <param name="reference_frame" value="$(arg reference_frame)" />
     <param name="target_frame" value="$(arg target_frame)" />
     <param name="keypoint_topic" value="$(arg keypoint_topic)" />

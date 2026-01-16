@@ -22,6 +22,8 @@ This project is based on https://github.com/ADVRHumanoids/nn_laser_spot_tracking
   `docker compose up --build`
 - Toggle tracking with `TRACKING_ENABLE=true|false` in `docker-compose.yml`.
 - Set Kinect FPS with `K4A_FPS=5|15|30` (also used for `dl_rate`).
+- Set color resolution with `COLOR_RESOLUTION=720P|1080P|1440P|1536P|2160P|3072P`.
+- Control whether roslaunch exits when any node dies with `NODES_REQUIRED=true|false`.
 - The full ROS stack runs inside the container; no host-side ROS installation is required.
 
 ### GPU build (Docker)

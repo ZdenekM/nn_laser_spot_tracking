@@ -19,9 +19,10 @@
   <arg name="calibration_param_ns" default="/table_calibration" />
   <arg name="camera_frame" default="" />
   <arg name="log_level" default="INFO" />
+  <arg name="required" default="true" />
 
   <node pkg="nn_laser_spot_tracking" name="aruco_table_calibration"
-        type="aruco_table_calib_node.py" output="screen" respawn="false"
+        type="aruco_table_calib_node.py" output="screen" respawn="false" required="$(arg required)"
         launch-prefix="env ROSCONSOLE_CONFIG_FILE=$(find nn_laser_spot_tracking)/config/rosconsole_$(arg log_level).config">
     <param name="camera_image_topic" value="$(arg camera_image_topic)" />
     <param name="camera_info_topic" value="$(arg camera_info_topic)" />

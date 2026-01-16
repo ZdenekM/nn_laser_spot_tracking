@@ -26,9 +26,10 @@
   <arg name="pub_out_images" default="true" />
   <arg name="pub_out_images_all_keypoints" default="false" />
   <arg name="pub_out_images_topic" default="/detection_output_img" />
+  <arg name="required" default="true" />
 
   <node pkg="nn_laser_spot_tracking" name="tracking_2D"
-        type="inferNodeROS.py" output="screen" respawn="false"
+        type="inferNodeROS.py" output="screen" respawn="false" required="$(arg required)"
         launch-prefix="env ROSCONSOLE_CONFIG_FILE=$(find nn_laser_spot_tracking)/config/rosconsole_$(arg log_level).config">
     <param name="model_path" value="$(arg model_path)" />
     <param name="model_name" value="$(arg model_name)" />

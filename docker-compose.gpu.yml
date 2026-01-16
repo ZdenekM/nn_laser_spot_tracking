@@ -11,3 +11,6 @@ services:
       - TRACKING_ENABLE=true
       # Azure Kinect FPS: valid values are 5, 15, 30.
       - K4A_FPS=30
+      # Higher resolution is OK on GPU.
+      - COLOR_RESOLUTION=1536P
+      - NODES_REQUIRED=true

@@ -16,6 +16,10 @@ services:
       - ROSCONSOLE_STDOUT_LINE_BUFFERED=1
       # Azure Kinect FPS: valid values are 5, 15, 30.
       - K4A_FPS=5
+      # Azure Kinect color resolution: 720P, 1080P, 1440P, 1536P, 2160P, 3072P.
+      - COLOR_RESOLUTION=720P
+      # If true, any node exit will stop roslaunch (useful for production).
+      - NODES_REQUIRED=true
       - TRACKING_ENABLE=false
       - HTTP_POSE_PATH=/camera_pose
       - HTTP_CALIBRATE_PATH=/calibrate
@@ -35,6 +39,8 @@ services:
         log_level:=DEBUG
         tracking_enable:=$${TRACKING_ENABLE}
         k4a_fps:=$${K4A_FPS}
+        color_resolution:=$${COLOR_RESOLUTION}
+        nodes_required:=$${NODES_REQUIRED}
         http_pose_path:=$${HTTP_POSE_PATH}
         http_calibrate_path:=$${HTTP_CALIBRATE_PATH}
         http_projector_calibration_path:=$${HTTP_PROJECTOR_CALIBRATION_PATH}
