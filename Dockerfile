@@ -53,6 +53,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-noetic-rgbd-launch \
     ros-noetic-joint-state-publisher \
     ros-noetic-robot-state-publisher \
+    ros-noetic-rqt-image-view \
     libopencv-dev \
     libopencv-contrib-dev \
     libsoundio1 \
@@ -109,7 +110,7 @@ RUN mv /catkin_ws/src/nn_laser_spot_tracking/third_party/Azure_Kinect_ROS_Driver
     mv /catkin_ws/src/nn_laser_spot_tracking/laser_udp_bridge /catkin_ws/src/laser_udp_bridge
 
 WORKDIR /catkin_ws
-RUN source /opt/ros/noetic/setup.bash && catkin_make -DCMAKE_BUILD_TYPE=Release
+RUN source /opt/ros/noetic/setup.bash && catkin_make -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

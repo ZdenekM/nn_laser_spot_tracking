@@ -446,9 +446,6 @@ class DetectorManager():
     def __publish_tracking(self, stamp, measurement, label=None, score=None, box=None, boxes=None, labels=None):
         tracking = self.__update_tracking(stamp, measurement, label, score)
         if tracking is None:
-            kp_msg = self.__pubKeypoint(stamp)
-            if kp_msg is None:
-                return
             self.__reset_depth_history()
             if self.pub_out_images:
                 self.__pubImageWithRectangle()
