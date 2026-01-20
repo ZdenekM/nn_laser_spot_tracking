@@ -1,0 +1,7 @@
+services:
+  nn_laser_spot_tracking:
+    environment:
+      - DISPLAY
+      - XAUTHORITY=/tmp/.docker.xauth
+    volumes:
+      - /tmp/.docker.xauth:/tmp/.docker.xauth:ro

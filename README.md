@@ -17,6 +17,8 @@ This project is based on https://github.com/ADVRHumanoids/nn_laser_spot_tracking
 - Optional NVIDIA GPU for faster inference (see GPU build below).
 
 ## Quick start (Docker, primary)
+- Initialize submodules:
+  `git submodule update --init`
 - Download the model `yolov5l6_e400_b8_tvt302010_laser_v4.pt` from https://zenodo.org/records/10471835 and place it in `models/`.
 - Run everything in Docker:
   `docker compose up --build`
@@ -41,6 +43,19 @@ docker exec -it -e DISPLAY=$DISPLAY <container_id> bash
 rosrun rqt_image_view rqt_image_view
 ```
 Select `/detection_output_img` in the UI.
+
+### Debug images over SSH X11
+If you are connected via `ssh -X` and want to use X11 from Docker:
+```
+XAUTH=/tmp/.docker.xauth
+touch "$XAUTH"
+xauth nlist "$DISPLAY" | sed -e 's/^..../ffff/' | xauth -f "$XAUTH" nmerge -
+chmod 644 "$XAUTH"
+```
+Then run:
+```
+docker compose -f docker-compose.yml -f docker-compose.x11-ssh.yml up --build
+```
 
 ## Outputs
 ### UDP
