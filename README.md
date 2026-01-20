@@ -58,6 +58,50 @@ Default host port: `8000`.
 - `PUT /projector_calibration`
 - `GET /projector_calibration`
 
+Endpoint details (served by `laser_udp_bridge`):
+
+#### GET /camera_pose
+Returns the latest camera pose (TF) and table calibration metadata.
+- Status: `200` when `ok=true`, `503` when `ok=false`.
+- Response body:
+  - `ok` (bool): `true` when the TF lookup succeeded.
+  - `reference_frame` (string): the configured reference frame.
+  - `camera_frame` (string): the configured camera frame.
+  - `pose` (object, present when `ok=true`): `frame_id`, `child_frame_id`, `stamp{secs,nsecs}`, `translation{x,y,z}`, `rotation{x,y,z,w}`.
+  - `pose_error` (string, present when `ok=false`): TF error message.
+  - `table` (object, always present): `width_m`, `height_m`, `marker_size_m`, `origin_corner`, `x_axis_corner`, `y_axis_corner`, `origin_id`, `x_axis_id`, `y_axis_id`, `stamp{secs,nsecs}`. Values are `null` if calibration is missing.
+
+#### GET /laser_point
+Returns the latest laser point in the reference frame.
+- Status: `200` when `ok=true`, `503` when `ok=false`.
+- Response body:
+  - `ok` (bool): `true` when a point is available.
+  - `error` (string, when `ok=false`): reason (e.g., missing table calibration or no data yet).
+  - `seq` (uint32), `stamp{secs,nsecs}`, `frame_id` (reference frame), `target_frame` (laser TF frame).
+  - `position{x,y,z}` in meters, `confidence` (float), `predicted` (bool), `depth_assumed_plane` (bool).
+
+#### POST /calibrate
+Triggers ArUco table calibration via the ROS service.
+- Status: `200` when `ok=true`, `503` when `ok=false`.
+- Response body: `ok` (bool), `message` (string).
+
+#### PUT /projector_calibration
+Stores a projector calibration computed from point correspondences.
+- Status: `200` on success, `400` on validation errors, `503` if table calibration is required but missing, `500` on compute/save errors.
+- Request body:
+  - `mode` (`planar` or `full3d`, default `planar`).
+  - `projector{width_px,height_px}`.
+  - `points[]`: array of `{projector{u,v}, world{x,y,z}}` (min 4 points for `planar`, 6 for `full3d`).
+  - Optional `frame_id` must be `table_frame` if provided.
+- Response body (success):
+  - `ok` (true), `mode`, `frame_id`, `projector`, `points_used`, `plane_rms_m`, `reprojection_rms_px`.
+  - `H_3x3` for `planar`, or `P_3x4` for `full3d`.
+
+#### GET /projector_calibration
+Returns the last saved projector calibration.
+- Status: `200` on success, `404` if none is available.
+- Response body: same as successful `PUT /projector_calibration` (or `{ok:false,error}` when missing).
+
 ## Table calibration (ArUco)
 This is optional and runs only on demand via a service call.
 
@@ -131,7 +175,7 @@ Notes:
 #### Common optional
 - **`model_path`** (default: "$(find nn_laser_spot_tracking)/models/"): Path to the model directory.
 - **`yolo_path`** (default: "ultralytics/yolov5"): Local YOLOv5 repo path.
-- **`image`** (default: "color/image_raw"): RGB image topic name.
+- **`image`** (default: "color/image_raw"): Color image topic name (Kinect publishes `bgra8`; the node accepts `bgra8` or `rgb8` and converts to `rgb8` internally).
 - **`dl_rate`** (default: 30): Main loop rate (inference is blocking, so actual rate may be lower).
 - **`detection_confidence_threshold`** (default: 0.55): Confidence threshold for detections.
 - **`keypoint_topic`** (default: "/nn_laser_spot_tracking/detection_output_keypoint"): `KeypointImage` output.

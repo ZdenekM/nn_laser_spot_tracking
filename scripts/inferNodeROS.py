@@ -498,6 +498,11 @@ class DetectorManager():
                 return False
             ros_image_input, depth_msg = self.frame_queue.pop()
 
+        if ros_image_input.encoding not in ("bgra8", "rgb8"):
+            raise ValueError(
+                f"Unsupported color image encoding '{ros_image_input.encoding}'. Expected bgra8 or rgb8."
+            )
+
         try:
             cv_image_input = self.bridge.imgmsg_to_cv2(ros_image_input, desired_encoding="rgb8")
         except CvBridgeError as e:
@@ -761,7 +766,6 @@ class DetectorManager():
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
-        self.cv_image_output = cv2.cvtColor(self.cv_image_output, cv2.COLOR_BGR2RGB)
         
         if (not box == None) and (score is not None):
             score_val = float(score.item()) if torch.is_tensor(score) else float(score)
@@ -794,7 +798,6 @@ class DetectorManager():
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
-        self.cv_image_output = cv2.cvtColor(self.cv_image_output, cv2.COLOR_BGR2RGB)
         
         if not box == None:
             i = 0
