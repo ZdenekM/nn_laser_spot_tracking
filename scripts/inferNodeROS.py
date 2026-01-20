@@ -766,7 +766,7 @@ class DetectorManager():
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
-        self.cv_image_output = np.ascontiguousarray(self.cv_image_output)
+        self.cv_image_output = np.array(self.cv_image_output, copy=True, order="C")
         
         if (not box == None) and (score is not None):
             score_val = float(score.item()) if torch.is_tensor(score) else float(score)
@@ -799,7 +799,7 @@ class DetectorManager():
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
-        self.cv_image_output = np.ascontiguousarray(self.cv_image_output)
+        self.cv_image_output = np.array(self.cv_image_output, copy=True, order="C")
         
         if not box == None:
             i = 0
