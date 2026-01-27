@@ -70,6 +70,8 @@ docker compose -f docker-compose.yml -f docker-compose.x11-ssh.yml up --build
 Default host port: `8000`.
 - Requests are logged by `laser_udp_bridge`: successful poll endpoints (`/camera_pose`, `/laser_point`)
   are `DEBUG`, while failures and non-poll endpoints log at `INFO/WARN/ERROR` with explicit reasons.
+- `PUT /projector_calibration` logs include `ok=<true|false>` plus `reproj_rms_px`, `plane_rms_m`,
+  and `error=...` when present.
 - Error responses return JSON with `{ok:false,error:\"...\"}` (including `404 Not Found`).
 - `GET /camera_pose`
 - `GET /laser_point`

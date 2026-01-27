@@ -421,8 +421,8 @@ class DetectorManager():
             raise ValueError("tracking_enable must be a boolean")
         tracking_alpha = rospy.get_param('~tracking_alpha', 0.85)
         tracking_beta = rospy.get_param('~tracking_beta', 0.005)
-        tracking_gate_px = rospy.get_param('~tracking_gate_px', 30.0)
-        tracking_max_prediction_frames = rospy.get_param('~tracking_max_prediction_frames', 6)
+        tracking_gate_px = rospy.get_param('~tracking_gate_px', 50.0)
+        tracking_max_prediction_frames = rospy.get_param('~tracking_max_prediction_frames', 15)
         tracking_reset_on_jump = rospy.get_param('~tracking_reset_on_jump', True)
         self.tracking_predicted_confidence_scale = rospy.get_param('~tracking_predicted_confidence_scale', 1.0)
         self.debug_log_throttle_sec = float(rospy.get_param("~debug_log_throttle_sec", 1.0))
@@ -537,6 +537,7 @@ class DetectorManager():
         self.last_detection_reason = "init"
         self.last_tracking_reason = "init"
         self.tracking_state = "lost"
+        self.loss_log_emitted = False
 
         self.tracker = None
         if self.tracking_enable:
@@ -565,6 +566,9 @@ class DetectorManager():
     def __set_tracking_state(self, new_state, reason, stamp, detail=None):
         if new_state not in ("lost", "tracking", "predicting"):
             raise ValueError(f"Unsupported tracking state '{new_state}'")
+        if new_state != "lost":
+            # Allow the next loss to be logged once after we recover.
+            self.loss_log_emitted = False
         previous_state = self.tracking_state
         self.tracking_state = new_state
         self.last_tracking_reason = reason
@@ -818,12 +822,11 @@ class DetectorManager():
                 return None
             was_initialized = self.tracker.initialized
             prev_missed_frames = self.tracker.missed_frames
-            prev_state = self.tracking_state
             result = self.tracker.update(None, stamp)
             if result is None:
                 reason = self.tracker.last_reason
-                # Only log the loss once per transition into the lost state.
-                if was_initialized and reason == "exceeded_predictions" and prev_state != "lost":
+                # Only log the loss once until we recover.
+                if was_initialized and reason == "exceeded_predictions" and not self.loss_log_emitted:
                     rospy.loginfo(
                         "Tracking lost at %s: exceeded max_prediction_frames=%d (missed_frames=%d, last_detection_reason=%s)",
                         str(stamp),
@@ -831,6 +834,7 @@ class DetectorManager():
                         prev_missed_frames,
                         self.last_detection_reason,
                     )
+                    self.loss_log_emitted = True
                 self.__set_tracking_state(
                     "lost",
                     reason,

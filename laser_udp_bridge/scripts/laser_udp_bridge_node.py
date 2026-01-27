@@ -35,6 +35,8 @@ class CalibrationHttpHandler(BaseHTTPRequestHandler):
         error = payload.get("error") if isinstance(payload, dict) else None
         mode = payload.get("mode") if isinstance(payload, dict) else None
         points_used = payload.get("points_used") if isinstance(payload, dict) else None
+        reprojection_rms_px = payload.get("reprojection_rms_px") if isinstance(payload, dict) else None
+        plane_rms_m = payload.get("plane_rms_m") if isinstance(payload, dict) else None
 
         # Successful polling endpoints can be very chatty; keep them at DEBUG.
         if self._is_poll_path(path) and status == 200 and ok:
@@ -42,10 +44,16 @@ class CalibrationHttpHandler(BaseHTTPRequestHandler):
             return
 
         details = []
+        if isinstance(payload, dict) and "ok" in payload:
+            details.append(f"ok={ok}")
         if mode:
             details.append(f"mode={mode}")
         if points_used is not None:
             details.append(f"points_used={points_used}")
+        if isinstance(reprojection_rms_px, (int, float)):
+            details.append(f"reproj_rms_px={float(reprojection_rms_px):.3f}")
+        if isinstance(plane_rms_m, (int, float)):
+            details.append(f"plane_rms_m={float(plane_rms_m):.4f}")
         if error:
             details.append(f"error={error}")
         detail_str = "" if not details else " " + " ".join(details)
