@@ -539,6 +539,8 @@ class DetectorManager():
         self.tracking_state = "lost"
         self.loss_log_emitted = False
         self.last_status_signature = None
+        self.table_filter_cache_key = None
+        self.table_filter_cache_context = None
 
         self.tracker = None
         if self.tracking_enable:
@@ -722,6 +724,20 @@ class DetectorManager():
             self.__publish_tracking(self.inference_stamp, None)
             self.__maybe_log_status(self.inference_stamp)
             return False
+
+        # Filter detections to the calibrated table bounds before tracking.
+        self.inference_stamp = self.ros_image_input.header.stamp
+        kept_count, filtered_outside = self.__filter_detections_to_table(self.inference_stamp)
+        if kept_count == 0:
+            self.last_detection_count = 0
+            self.last_best_score = None
+            self.__set_detection_reason(
+                "outside_table_bounds",
+                "All detections filtered outside table bounds",
+            )
+            self.__publish_tracking(self.inference_stamp, None)
+            self.__maybe_log_status(self.inference_stamp)
+            return True
         
         #IDK if the best box is always the first one, so lets the argmax
         self.best_index = int(torch.argmax(self.out['scores']))
@@ -738,8 +754,6 @@ class DetectorManager():
         
         #show_image_with_boxes(img, self.out['boxes'][self.best_index], self.out['labels'][self.best_index])
         
-        # Keep ROS timestamps aligned with the source image
-        self.inference_stamp = self.ros_image_input.header.stamp
         if best_score < self.detection_confidence_threshold:
             self.__set_detection_reason(
                 "below_threshold",
@@ -950,21 +964,110 @@ class DetectorManager():
         return samples
 
     def __table_calibration_ready(self, stamp):
+        try:
+            self.__table_filter_context(stamp)
+        except (ValueError, RuntimeError) as exc:
+            return False, str(exc)
+        return True, None
+
+    def __table_filter_context(self, stamp):
+        if not self.require_table_calibration:
+            return None
         ns = self.calibration_param_ns.rstrip("/")
         width = rospy.get_param(ns + "/width_m", None)
         height = rospy.get_param(ns + "/height_m", None)
         if width is None or height is None:
-            return False, "Table calibration parameters missing"
+            raise ValueError("Table calibration parameters missing for table bounds filter")
+        stamp_secs = rospy.get_param(ns + "/stamp_secs", None)
+        stamp_nsecs = rospy.get_param(ns + "/stamp_nsecs", None)
+        cache_key = (
+            float(width),
+            float(height),
+            stamp_secs,
+            stamp_nsecs,
+            self.table_frame,
+            self.ros_image_input.header.frame_id,
+        )
+        if cache_key == self.table_filter_cache_key and self.table_filter_cache_context is not None:
+            return self.table_filter_cache_context
         try:
-            self.tf_buffer.lookup_transform(
+            transform = self.tf_buffer.lookup_transform(
                 self.table_frame,
                 self.ros_image_input.header.frame_id,
-                stamp,
+                rospy.Time(0),
                 rospy.Duration(0.05),
             )
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as exc:
-            return False, f"Table calibration TF missing: {exc}"
-        return True, None
+            raise RuntimeError(f"Table bounds filter TF missing: {exc}")
+
+        translation = transform.transform.translation
+        rotation = transform.transform.rotation
+        rot_matrix = tf.transformations.quaternion_matrix(
+            [rotation.x, rotation.y, rotation.z, rotation.w]
+        )[:3, :3]
+        origin_table = np.array([translation.x, translation.y, translation.z], dtype=np.float64)
+        context = (float(width), float(height), origin_table, rot_matrix)
+        self.table_filter_cache_key = cache_key
+        self.table_filter_cache_context = context
+        return context
+
+    def __pixel_within_table_bounds(self, pixel, width_m, height_m, origin_table, rot_matrix):
+        ray = np.array(self.cam_model.projectPixelTo3dRay(pixel), dtype=np.float64)
+        ray_norm = np.linalg.norm(ray)
+        if ray_norm <= 1e-9:
+            return False
+        ray = ray / ray_norm
+        dir_table = rot_matrix.dot(ray)
+        if abs(dir_table[2]) < 1e-6:
+            return False
+        t_param = -origin_table[2] / dir_table[2]
+        if t_param <= 0.0:
+            return False
+        point_table = origin_table + t_param * dir_table
+        x_m = float(point_table[0])
+        y_m = float(point_table[1])
+        return (0.0 <= x_m <= width_m) and (0.0 <= y_m <= height_m)
+
+    def __filter_detections_to_table(self, stamp):
+        total = len(self.out["scores"])
+        if total == 0 or not self.require_table_calibration:
+            return total, 0
+        width_m, height_m, origin_table, rot_matrix = self.__table_filter_context(stamp)
+        keep_indices = []
+        filtered_outside = 0
+        for idx in range(total):
+            pixel = self.__box_center(self.out["boxes"][idx])
+            if pixel is None:
+                filtered_outside += 1
+                continue
+            if self.__pixel_within_table_bounds(pixel, width_m, height_m, origin_table, rot_matrix):
+                keep_indices.append(idx)
+            else:
+                filtered_outside += 1
+
+        kept_count = len(keep_indices)
+        if filtered_outside > 0:
+            rospy.logdebug_throttle(
+                self.debug_log_throttle_sec,
+                "Filtered %d/%d detections outside table bounds",
+                filtered_outside,
+                total,
+            )
+        if kept_count == 0:
+            # Clear outputs so downstream logic treats this as no detections.
+            device = self.out["scores"].device
+            self.out["scores"] = torch.zeros(0, device=device)
+            self.out["boxes"] = torch.zeros((0, 4), device=device)
+            self.out["labels"] = torch.zeros(0, dtype=torch.int32, device=device)
+            return 0, filtered_outside
+        if filtered_outside == 0:
+            return kept_count, 0
+
+        index_tensor = torch.tensor(keep_indices, dtype=torch.long, device=self.out["scores"].device)
+        self.out["scores"] = torch.index_select(self.out["scores"], 0, index_tensor)
+        self.out["boxes"] = torch.index_select(self.out["boxes"], 0, index_tensor)
+        self.out["labels"] = torch.index_select(self.out["labels"], 0, index_tensor)
+        return kept_count, filtered_outside
 
     def __fallback_to_table_plane(self, pixel, stamp):
         if not self.depth_fallback_plane_enable:

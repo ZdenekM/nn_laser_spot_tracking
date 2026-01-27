@@ -187,6 +187,8 @@ Notes:
 - `KeypointImage.predicted` is true when no measurement was available in the current frame.
 - Depth is computed from the filtered pixel and smoothed with a short median window.
 - Debug images show detection boxes plus a tracking cross (green = measured, yellow = predicted).
+- When table calibration is required, detections are filtered to the calibrated table bounds before tracking.
+- The table-bounds filter caches the table transform and refreshes it when calibration parameters change.
 - Logging is split by intent: per-frame detection diagnostics are `DEBUG` (throttled), while
   `INFO` reports tracking state transitions (`lost -> tracking -> predicting`) and a periodic
   status line with explicit reasons (e.g., `no_scores`, `below_threshold`, `reset_on_jump`,
