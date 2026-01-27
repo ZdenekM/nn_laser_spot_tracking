@@ -187,6 +187,7 @@ Notes:
 - `KeypointImage.predicted` is true when no measurement was available in the current frame.
 - Depth is computed from the filtered pixel and smoothed with a short median window.
 - Debug images show detection boxes plus a tracking cross (green = measured, yellow = predicted).
+- Debug images are generated and published only when the image topic has subscribers.
 - When table calibration is required, detections are filtered to the calibrated table bounds before tracking.
 - The table-bounds filter caches the table transform and refreshes it when calibration parameters change.
 - Logging is split by intent: per-frame detection diagnostics are `DEBUG` (throttled), while
@@ -195,6 +196,7 @@ Notes:
   `exceeded_predictions`, `table_calibration_missing`).
 - The periodic status log suppresses repeated `state=lost` lines unless the underlying status changes.
 - Log messages omit explicit timestamps; ROS already prints them.
+- Performance logs at `INFO` every ~10 seconds with average `hz`, `total`, `infer`, and `post` times.
 
 ### Detection image stream (browser)
 The Docker launch starts `web_video_server` on port `8080` so you can view debug images
@@ -222,7 +224,7 @@ Notes:
 - **`yolo_path`** (default: "ultralytics/yolov5"): Local YOLOv5 repo path.
 - **`image`** (default: "color/image_raw"): Color image topic name (Kinect publishes `bgra8`; the node accepts `bgra8` or `rgb8` and converts to `rgb8` internally).
 - **`dl_rate`** (default: 5): Main loop rate (inference is blocking, so actual rate may be lower).
-- **`detection_confidence_threshold`** (default: 0.70): Confidence threshold for detections.
+- **`detection_confidence_threshold`** (default: 0.65): Confidence threshold for detections.
 - **`keypoint_topic`** (default: "/nn_laser_spot_tracking/detection_output_keypoint"): `KeypointImage` output.
 - **`laser_spot_frame`** (default: "laser" in `laser_tracking.launch`, "laser_spot_frame" in the docker launch).
 - **`pub_out_images`** (default: true): Publish debug images with rectangle.
@@ -230,10 +232,10 @@ Notes:
 - **`pub_out_images_topic`** (default: "/detection_output_img"): Debug image topic base.
 - **`log_level`** (default: INFO, docker launch only): Logger level for `tracking_2D`.
 - **`tracking_enable`** (default: true): Enable 2D alpha-beta tracking.
-- **`tracking_alpha`** (default: 0.85): Alpha parameter for tracking (higher = less lag).
+- **`tracking_alpha`** (default: 0.90): Alpha parameter for tracking (higher = less lag).
 - **`tracking_beta`** (default: 0.003): Beta parameter for tracking velocity update.
-- **`tracking_gate_px`** (default: 40.0): Gating threshold in pixels before reset.
-- **`tracking_max_prediction_frames`** (default: 10): Max predicted frames without measurement.
+- **`tracking_gate_px`** (default: 90.0): Gating threshold in pixels before reset.
+- **`tracking_max_prediction_frames`** (default: 15): Max predicted frames without measurement.
 - **`tracking_reset_on_jump`** (default: true): Reset tracker when jump exceeds gate.
 - **`tracking_predicted_confidence_scale`** (default: 1.0): Confidence scale for predicted frames.
 - **`debug_log_throttle_sec`** (default: 1.0): Throttle period for `DEBUG` detection logs (and jump-reset notices).

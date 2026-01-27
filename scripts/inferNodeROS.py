@@ -10,6 +10,7 @@ import os
 from collections import deque
 import threading
 import numpy as np
+import time
 
 
 # Pytorch stuff
@@ -541,6 +542,12 @@ class DetectorManager():
         self.last_status_signature = None
         self.table_filter_cache_key = None
         self.table_filter_cache_context = None
+        self.perf_log_period_sec = 10.0
+        self.perf_next_log_time = rospy.Time(0)
+        self.perf_last_log_sec = None
+        self.perf_count = 0
+        self.perf_sum_total = 0.0
+        self.perf_sum_infer = 0.0
 
         self.tracker = None
         if self.tracking_enable:
@@ -625,6 +632,42 @@ class DetectorManager():
         )
         self.last_status_signature = signature
 
+    def __has_image_subscribers(self):
+        if not self.pub_out_images:
+            return False
+        if not hasattr(self, "image_pub"):
+            return False
+        return self.image_pub.get_num_connections() > 0
+
+    def __perf_add(self, stamp, total_sec, infer_sec):
+        stamp_sec = stamp.to_sec() if stamp is not None else rospy.Time.now().to_sec()
+        if self.perf_last_log_sec is None:
+            self.perf_last_log_sec = stamp_sec
+            self.perf_next_log_time = rospy.Time.from_sec(stamp_sec + self.perf_log_period_sec)
+        self.perf_count += 1
+        self.perf_sum_total += float(total_sec)
+        self.perf_sum_infer += float(infer_sec)
+        if stamp_sec < self.perf_next_log_time.to_sec():
+            return
+        elapsed = max(stamp_sec - self.perf_last_log_sec, 1e-6)
+        avg_total = self.perf_sum_total / max(self.perf_count, 1)
+        avg_infer = self.perf_sum_infer / max(self.perf_count, 1)
+        avg_post = max(avg_total - avg_infer, 0.0)
+        hz = self.perf_count / elapsed
+        rospy.loginfo(
+            "Perf avg over %.1fs: hz=%.1f total=%.4fs infer=%.4fs post=%.4fs",
+            elapsed,
+            hz,
+            avg_total,
+            avg_infer,
+            avg_post,
+        )
+        self.perf_last_log_sec = stamp_sec
+        self.perf_next_log_time = rospy.Time.from_sec(stamp_sec + self.perf_log_period_sec)
+        self.perf_count = 0
+        self.perf_sum_total = 0.0
+        self.perf_sum_infer = 0.0
+
 
     def __sync_clbk(self, rgb_msg, depth_msg):
         rospy.logdebug(
@@ -645,6 +688,9 @@ class DetectorManager():
                 rospy.loginfo_throttle(2.0, "No new synced frame yet; skipping publish")
                 return False
             ros_image_input, depth_msg = self.frame_queue.pop()
+        perf_stamp = ros_image_input.header.stamp
+        loop_start = time.perf_counter()
+        infer_time_sec = 0.0
 
         if ros_image_input.encoding not in ("bgra8", "rgb8"):
             raise ValueError(
@@ -655,12 +701,14 @@ class DetectorManager():
             cv_image_input = self.bridge.imgmsg_to_cv2(ros_image_input, desired_encoding="rgb8")
         except CvBridgeError as e:
             rospy.logerror(e)
+            self.__perf_add(perf_stamp, time.perf_counter() - loop_start, infer_time_sec)
             return False
 
         try:
             depth_cv = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
         except CvBridgeError as e:
             rospy.logerror(e)
+            self.__perf_add(perf_stamp, time.perf_counter() - loop_start, infer_time_sec)
             return False
 
         self.cv_image_input = cv_image_input
@@ -696,13 +744,13 @@ class DetectorManager():
                 self.__set_tracking_state("lost", "table_calibration_missing", stamp, error)
                 self.__reset_depth_history()
                 self.__maybe_log_status(stamp)
+                self.__perf_add(perf_stamp, time.perf_counter() - loop_start, infer_time_sec)
                 return False
         
         with torch.no_grad():
-            
-            #tic = rospy.Time().now()
-            #tic_py = time.time()
+            infer_start = time.perf_counter()
             self.out = self.model_helper.infer(self.cv_image_input)
+            infer_time_sec = time.perf_counter() - infer_start
             #self.out = non_max_suppression(out, 80, self.confidence_th, self.nms_th)
         
             #toc = rospy.Time().now()
@@ -723,6 +771,7 @@ class DetectorManager():
             )
             self.__publish_tracking(self.inference_stamp, None)
             self.__maybe_log_status(self.inference_stamp)
+            self.__perf_add(perf_stamp, time.perf_counter() - loop_start, infer_time_sec)
             return False
 
         # Filter detections to the calibrated table bounds before tracking.
@@ -737,6 +786,7 @@ class DetectorManager():
             )
             self.__publish_tracking(self.inference_stamp, None)
             self.__maybe_log_status(self.inference_stamp)
+            self.__perf_add(perf_stamp, time.perf_counter() - loop_start, infer_time_sec)
             return True
         
         #IDK if the best box is always the first one, so lets the argmax
@@ -763,6 +813,7 @@ class DetectorManager():
             )
             self.__publish_tracking(self.inference_stamp, None)
             self.__maybe_log_status(self.inference_stamp)
+            self.__perf_add(perf_stamp, time.perf_counter() - loop_start, infer_time_sec)
             return True
 
         measurement = self.__box_center(self.out['boxes'][self.best_index])
@@ -781,13 +832,15 @@ class DetectorManager():
             self.out['labels'],
         )
         self.__maybe_log_status(self.inference_stamp)
+        self.__perf_add(perf_stamp, time.perf_counter() - loop_start, infer_time_sec)
         return True
 
     def __publish_tracking(self, stamp, measurement, label=None, score=None, box=None, boxes=None, labels=None):
         tracking = self.__update_tracking(stamp, measurement, label, score)
+        image_subscribers = self.__has_image_subscribers()
         if tracking is None:
             self.__reset_depth_history()
-            if self.pub_out_images:
+            if image_subscribers:
                 self.__pubImageWithRectangle()
             return
         xyz, depth_assumed_plane, depth_predicted = self.__compute_xyz(tracking["pixel"], stamp)
@@ -808,7 +861,7 @@ class DetectorManager():
             return
         self.__publish_tf(xyz, stamp)
 
-        if self.pub_out_images:
+        if image_subscribers:
             if measurement is None:
                 self.__pubImageWithRectangle(
                     tracking_pixel=tracking["pixel"],
@@ -1135,7 +1188,8 @@ class DetectorManager():
         cv2.line(image, (x, y - size), (x, y + size), color, thickness)
 
     def __pubImageWithRectangle(self, box=None, score=None, label=None, tracking_pixel=None, tracking_predicted=False):
-        
+        if not self.__has_image_subscribers():
+            return
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
@@ -1170,7 +1224,8 @@ class DetectorManager():
         self.image_pub.publish(self.ros_image_output)
         
     def __pubImageWithAllRectangles(self, box=None, label=None, tracking_pixel=None, tracking_predicted=False):
-        
+        if not self.__has_image_subscribers():
+            return
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
